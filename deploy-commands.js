@@ -31,6 +31,9 @@ const commands = [
 	new SlashCommandBuilder()
 		.setName('loop')
 		.setDescription('loops unless it\'s already looping then it doesn\'t'),
+	new SlashCommandBuilder()
+		.setName('stop')
+		.setDescription('Stops playback and clears the queue'),
 ]
 .map(command => command.toJSON());
 

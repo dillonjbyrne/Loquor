@@ -98,6 +98,16 @@ client.on('interactionCreate', async interaction => {
 		loop = !loop;
 		await interaction.reply(loop ? 'Looping the current song!' : 'Looping off');
 	}
+
+	if (interaction.commandName === 'stop') {
+		queue = [];
+		if (player) {
+			player.stop();
+			player = null;
+			currentConnection.destroy();
+		}
+		await interaction.reply("Playback stopped and queue cleared.");
+	}
 });
 
 function playMp3(mp3file, player) {

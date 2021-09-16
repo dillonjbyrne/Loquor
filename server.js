@@ -15,6 +15,7 @@ const { clientId, token } = require('./config.json');
 let queue = [];
 let loop = false;
 let currentConnection;
+let player;
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
@@ -35,11 +36,14 @@ client.on('interactionCreate', async interaction => {
 		const targetVoiceChannel = interaction.options.getChannel('channel-to-join') ?? interaction.member.voice.channel;
 		if (targetVoiceChannel && targetVoiceChannel.joinable) {
 			try {
-        let player = createAudioPlayer();
-        player.on(AudioPlayerStatus.Idle, () => {
-          player.stop();
-          currentConnection.destroy();
-        });
+				if (player) {
+					player.stop();
+				}
+				player = createAudioPlayer();
+				player.on(AudioPlayerStatus.Idle, () => {
+					player.stop();
+					currentConnection.destroy();
+				});
 				playMp3('./PizzaTime.mp3', player);
 				currentConnection = await connectToChannel(targetVoiceChannel);
 				currentConnection.subscribe(player);
@@ -53,28 +57,45 @@ client.on('interactionCreate', async interaction => {
 		}
 	}
 
-  if (interaction.commandName === 'play') {
-    const targetVoiceChannel = interaction.options.getChannel('channel-to-join') ?? interaction.member.voice.channel;
-		if (targetVoiceChannel && targetVoiceChannel.joinable) {
-      try {
-        addToQueue(interaction.options.getString('url'));
-        let player = createAudioPlayer();
-        player.on(AudioPlayerStatus.Idle, () => {
-          player.stop();
-          currentConnection.destroy();
-        });
-        playUrl(queue[0], player);
-        currentConnection = await connectToChannel(targetVoiceChannel);
-				currentConnection.subscribe(player);
-				await interaction.reply({ content: 'Playing!', ephemeral: true});
-      } catch (error) {
-				console.error(error);
+	if (interaction.commandName === 'play') {
+		url = interaction.options.getString('url')
+		queue.push(url);
+		if (!player) {
+			const targetVoiceChannel = interaction.options.getChannel('channel-to-join') ?? interaction.member.voice.channel;
+			if (targetVoiceChannel && targetVoiceChannel.joinable) {
+				try {
+					player = createAudioPlayer();
+					player.on(AudioPlayerStatus.Idle, () => {
+						if (loop) {
+							playUrl(queue[0], player);
+						} else if (queue.length > 1) {
+							queue.shift();
+							playUrl(queue[0], player);
+						} else {
+							queue.shift();
+							player.stop();
+							currentConnection.destroy();
+						}
+					});
+					playUrl(queue[0], player);
+					currentConnection = await connectToChannel(targetVoiceChannel);
+					currentConnection.subscribe(player);
+					await interaction.reply({ content: `Playing ${queue[0]}`});
+				} catch (error) {
+							console.error(error);
+				}
+			} else {
+				await interaction.reply(`I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join or specify a voice channel that I have access to.`);
 			}
-    }
-		else {
-			await interaction.reply({ content: `I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join or specify a voice channel that I have access to.`, ephemeral: true});
+		} else {
+			await interaction.reply(`Added ${url} to the queue. Current queue: ${queue}`)
 		}
-  }
+	}
+
+	if (interaction.commandName === 'loop') {
+		loop = !loop;
+		await interaction.reply(loop ? 'Looping the current song!' : 'Looping off');
+	}
 });
 
 function playMp3(mp3file, player) {
@@ -85,10 +106,6 @@ function playMp3(mp3file, player) {
 	player.play(resource);
 
 	return entersState(player, AudioPlayerStatus.Playing, 5e3);
-}
-
-function addToQueue(url) {
-  queue.push(url);
 }
 
 async function playUrl(url, player) {

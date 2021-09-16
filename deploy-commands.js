@@ -28,8 +28,11 @@ const commands = [
 				.setName('channel-to-join')
 				.setDescription('Overrides current user\'s channel if user is in a voice channel.')
 		),
+	new SlashCommandBuilder()
+		.setName('loop')
+		.setDescription('loops unless it\'s already looping then it doesn\'t'),
 ]
-	.map(command => command.toJSON());
+.map(command => command.toJSON());
 
 const rest = new REST({ version: '9' }).setToken(token);
 

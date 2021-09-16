@@ -42,6 +42,7 @@ client.on('interactionCreate', async interaction => {
 				player = createAudioPlayer();
 				player.on(AudioPlayerStatus.Idle, () => {
 					player.stop();
+					player = null;
 					currentConnection.destroy();
 				});
 				playMp3('./PizzaTime.mp3', player);
@@ -74,6 +75,7 @@ client.on('interactionCreate', async interaction => {
 						} else {
 							queue.shift();
 							player.stop();
+							player = null;
 							currentConnection.destroy();
 						}
 					});
@@ -88,7 +90,7 @@ client.on('interactionCreate', async interaction => {
 				await interaction.reply(`I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join or specify a voice channel that I have access to.`);
 			}
 		} else {
-			await interaction.reply(`Added ${url} to the queue. Current queue: ${queue}`)
+			await interaction.reply(`Added ${url} to the queue. Current queue size: ${queue.length}`)
 		}
 	}
 

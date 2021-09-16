@@ -9,10 +9,12 @@ const {
 	VoiceConnectionStatus,
 	VoiceConnection,
 } = require('@discordjs/voice');
+const ytdl = require('ytdl-core-discord');
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES] });
 const { clientId, token } = require('./config.json');
-const player = createAudioPlayer();
-var currentConnection;
+let queue = [];
+let loop = false;
+let currentConnection;
 
 client.on('ready', () => {
 	console.log(`Logged in as ${client.user.tag}!`);
@@ -33,7 +35,12 @@ client.on('interactionCreate', async interaction => {
 		const targetVoiceChannel = interaction.options.getChannel('channel-to-join') ?? interaction.member.voice.channel;
 		if (targetVoiceChannel && targetVoiceChannel.joinable) {
 			try {
-				playSong('./PizzaTime.mp3');
+        let player = createAudioPlayer();
+        player.on(AudioPlayerStatus.Idle, () => {
+          player.stop();
+          currentConnection.destroy();
+        });
+				playMp3('./PizzaTime.mp3', player);
 				currentConnection = await connectToChannel(targetVoiceChannel);
 				currentConnection.subscribe(player);
 				await interaction.reply({ content: ':pizza::timer:', ephemeral: true});
@@ -42,16 +49,35 @@ client.on('interactionCreate', async interaction => {
 			}
 		}
 		else {
-			await interaction.reply({ content:`I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join a voice channel that I have access to.`, ephemeral: true});
+			await interaction.reply({ content:`I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join or specify a voice channel that I have access to.`, ephemeral: true});
 		}
 	}
+
+  if (interaction.commandName === 'play') {
+    const targetVoiceChannel = interaction.options.getChannel('channel-to-join') ?? interaction.member.voice.channel;
+		if (targetVoiceChannel && targetVoiceChannel.joinable) {
+      try {
+        addToQueue(interaction.options.getString('url'));
+        let player = createAudioPlayer();
+        player.on(AudioPlayerStatus.Idle, () => {
+          player.stop();
+          currentConnection.destroy();
+        });
+        playUrl(queue[0], player);
+        currentConnection = await connectToChannel(targetVoiceChannel);
+				currentConnection.subscribe(player);
+				await interaction.reply({ content: 'Playing!', ephemeral: true});
+      } catch (error) {
+				console.error(error);
+			}
+    }
+		else {
+			await interaction.reply({ content: `I cannot join the voice channel you asked me to join: ${targetVoiceChannel.name}. Please join or specify a voice channel that I have access to.`, ephemeral: true});
+		}
+  }
 });
 
-player.on(AudioPlayerStatus.Idle, () => {
-	currentConnection.destroy();
-});
-
-function playSong(mp3file) {
+function playMp3(mp3file, player) {
 	const resource = createAudioResource(mp3file, {
 		inputType: StreamType.Arbitrary,
 	});
@@ -59,6 +85,22 @@ function playSong(mp3file) {
 	player.play(resource);
 
 	return entersState(player, AudioPlayerStatus.Playing, 5e3);
+}
+
+function addToQueue(url) {
+  queue.push(url);
+}
+
+async function playUrl(url, player) {
+  let stream = await ytdl(url);
+
+  const resource = createAudioResource(stream, {
+		inputType: StreamType.Opus,
+	});
+
+  player.play(resource);
+
+  return entersState(player, AudioPlayerStatus.Playing, 5e3);
 }
 
 async function connectToChannel(channel) {

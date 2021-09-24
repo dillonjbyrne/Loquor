@@ -1,4 +1,4 @@
-const { Client, VoiceChannel, Intents } = require('discord.js');
+const { Client, Intents } = require('discord.js');
 const {
 	joinVoiceChannel,
 	createAudioPlayer,
@@ -7,9 +7,9 @@ const {
 	StreamType,
 	AudioPlayerStatus,
 	VoiceConnectionStatus,
-	VoiceConnection,
 } = require('@discordjs/voice');
-const ytdl = require('ytdl-core-discord');
+// const ytdl = require('ytdl-core-discord');
+const youtubedl = require('youtube-dl-exec');
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES] });
 const { clientId, token } = require('./config.json');
 let queue = [];
@@ -121,15 +121,19 @@ function playMp3(mp3file, player) {
 }
 
 async function playUrl(url, player) {
-  let stream = await ytdl(url);
+//   let stream = await ytdl(url);
+	let stream = youtubedl.raw(url, {
+		o: '-',
+		q: '',
+		f: 'bestaudio[ext=webm+acodec=opus+asr=48000]/bestaudio',
+		r: '100K',
+	}, { stdio: ['ignore', 'pipe', 'ignore'] });
 
-  const resource = createAudioResource(stream, {
-		inputType: StreamType.Opus,
-	});
+	const resource = createAudioResource(stream.stdout);
 
-  player.play(resource);
+  	player.play(resource);
 
-  return entersState(player, AudioPlayerStatus.Playing, 5e3);
+  	return entersState(player, AudioPlayerStatus.Playing, 5e3);
 }
 
 async function connectToChannel(channel) {
